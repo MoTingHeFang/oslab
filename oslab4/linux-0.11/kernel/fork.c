@@ -19,6 +19,8 @@
 
 extern void write_verify(unsigned long address);
 
+extern void first_return_from_kernel();
+
 long last_pid=0;
 
 void verify_area(void * addr,int size)
@@ -90,6 +92,8 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 	p->utime = p->stime = 0;
 	p->cutime = p->cstime = 0;
 	p->start_time = jiffies;
+
+	/*
 	p->tss.back_link = 0;
 	p->tss.esp0 = PAGE_SIZE + (long) p;
 	p->tss.ss0 = 0x10;
@@ -111,6 +115,31 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 	p->tss.gs = gs & 0xffff;
 	p->tss.ldt = _LDT(nr);
 	p->tss.trace_bitmap = 0x80000000;
+	*/
+
+	long *krnstack = (long*)((long)p + PAGE_SIZE);
+	*(--krnstack) = ss & 0xffff;
+	*(--krnstack) = esp;
+	*(--krnstack) = eflags;
+	*(--krnstack) = cs & 0xffff;
+	*(--krnstack) = eip;
+	*(--krnstack) = ds & 0xffff;
+	*(--krnstack) = es & 0xffff;
+	*(--krnstack) = fs & 0xffff;
+	*(--krnstack) = gs & 0xffff;
+	*(--krnstack) = esi;
+	*(--krnstack) = edi;
+	*(--krnstack) = edx;
+/*旧进程都是schedule调用的switch_to，新进程需要手动设置*/
+	*(--krnstack) = (long) first_return_from_kernel;
+	*(--krnstack) = ebp;
+	*(--krnstack) = ecx;
+	*(--krnstack) = ebx;
+	*(--krnstack) = 0;
+	p->kernelstack = krnstack;
+
+
+
 	if (last_task_used_math == current)
 		__asm__("clts ; fnsave %0"::"m" (p->tss.i387));
 	if (copy_mem(nr,p)) {
