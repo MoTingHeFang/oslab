@@ -185,6 +185,7 @@ repeat:	current->state = TASK_INTERRUPTIBLE;
 		tmp->state=0;
 }
 
+/*将队首PCB设为就绪态*/
 void wake_up(struct task_struct **p)
 {
 	if (p && *p) {
