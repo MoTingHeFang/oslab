@@ -3,6 +3,9 @@
 /*open在这个头文件中*/
 #include <fcntl.h>
 #include <linux/sem.h>
+/*EINTR在这个头文件中*/
+#include <errno.h>
+
 
 #include <unistd.h>
 /*包含stdout*/
@@ -23,10 +26,17 @@ int main()
     int fi = open("/usr/root/buffer", O_TRUNC | O_CREAT | O_WRONLY, 0666);
     int fo = open("/usr/root/buffer", O_RDONLY, 0666);
     const int numofconsumer = 3;
+    int end_flag = open("/usr/root/flag", O_RDWR | O_CREAT, 0666);
+    char end;
+    int consumer_pid[numofconsumer];
+
     mutex = sem_open("mutex", 1);
     full = sem_open("full", 0);
     empty = sem_open("empty", 10);
 
+    /*给end_flag设置初值*/
+    lseek(end_flag, 0, SEEK_SET);
+    write(end_flag, "n", 1);    
     if (!fork())
     {
         /*子进程是生产者*/
@@ -42,10 +52,11 @@ int main()
             sem_post(mutex);
             sem_post(full);
         }
+        /*写完就关*/
         close(fi);
         exit(0);
     }
-    /*父进程创建消费者*/
+    /*父进程创建消费者，父进程不是消费者*/
     else
     {
         for (i = 0; i <= numofconsumer - 1; i++)
@@ -65,32 +76,72 @@ int main()
                         lseek(fo, 0, SEEK_SET);
                         read(fo, (char *)&item_used, sizeof(item_used));
                     }
-                    /*文件描述符已经关闭，有个进程已经读到500*/
-                    else if (numofread == -1)
-                    {
-                        exit(0);
-                    }
                     pid = getpid();
                     printf("%d:\t%d\n", pid, item_used);
                     fflush(stdout);
+
                     if (item_used == 500)
                     {
-                        close(fo);
+                        lseek(end_flag, 0, SEEK_SET);
+                        write(end_flag, "y", 1);
                         exit(0);
                     }
-
                     sem_post(mutex);
                     sem_post(empty);
                 }
                 break;
             }
+            else
+            {
+                /*父进程记录消费者的pid*/
+                consumer_pid[i] = pid;
+            }
+
+
         }
     }
 
-    sem_unlink("mutex");
-    sem_unlink("full");
-    sem_unlink("empty");
 
-    /*父进程退出*/
-    return 0;
+
+
+    /*所有子进程都exit，父进程才exit*/
+    while (1)
+    {
+		int ret;
+        /*父进程暂停自己的执行，等待子进程exit*/
+    	ret = wait(NULL);
+        /*子进程exit，父进程被唤醒*/
+        /*如果是生产者子进程exit，父进程接着wait*/
+        /*如果是消费者子进程exit，父进程kill所有消费者*/
+
+
+        lseek(end_flag, 0, SEEK_SET);
+        read(end_flag,&end,1);
+        /*500已经printf，kill所有消费者*/
+        if (end == 'y')
+        {
+            for (i = 0; i <= numofconsumer - 1; i++)
+            {
+                kill(consumer_pid[i],SIGKILL);
+            }
+
+            sem_unlink("mutex");
+            sem_unlink("full");
+            sem_unlink("empty");
+            /*父进程exit*/
+            exit(0);
+        }
+
+        if (ret == -1)
+        {
+            if (errno == EINTR)
+            {
+                /* 返回值为-1的时候有两种情况，一种是没有子进程了，还有一种是被中断了*/
+                continue;
+            }
+            break;
+        }
+    }
+
+    return 0; 
 }
