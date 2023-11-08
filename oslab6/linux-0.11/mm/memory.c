@@ -40,7 +40,7 @@ static inline volatile void oom(void)
 __asm__("movl %%eax,%%cr3"::"a" (0))
 
 /* these are not to be changed without changing head.s etc */
-#define LOW_MEM 0x100000
+
 #define PAGING_MEMORY (15*1024*1024)
 #define PAGING_PAGES (PAGING_MEMORY>>12)
 #define MAP_NR(addr) (((addr)-LOW_MEM)>>12)
@@ -54,7 +54,7 @@ static long HIGH_MEMORY = 0;
 #define copy_page(from,to) \
 __asm__("cld ; rep ; movsl"::"S" (from),"D" (to),"c" (1024))
 
-static unsigned char mem_map [ PAGING_PAGES ] = {0,};
+unsigned char mem_map [ PAGING_PAGES ] = {0,};
 
 /*
  * Get physical address of first (actually last :-) free page, and mark it

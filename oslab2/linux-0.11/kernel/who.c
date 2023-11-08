@@ -41,8 +41,7 @@ int sys_whoami(char* name, unsigned int size)
     if(len>size-1)
     //需要存len个字符，size大的数组，可存size-1个字符
     {
-        errno = EINVAL;
-        return -1;
+		return -EINVAL;
     }else{
         int i=0;
         for(i=0;i<=len;i++)
