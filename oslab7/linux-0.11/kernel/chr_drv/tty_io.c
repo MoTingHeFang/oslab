@@ -345,6 +345,16 @@ void do_tty_interrupt(int tty)
 	copy_to_cooked(tty_table+tty);
 }
 
+int starflag = 0;
+
+void myfunc(){
+	if (starflag==0){
+		starflag=1;
+	}else{
+		starflag=0;
+	}
+}
+
 void chr_dev_init(void)
 {
 }

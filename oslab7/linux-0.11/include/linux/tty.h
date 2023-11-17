@@ -52,6 +52,8 @@ struct tty_struct {
 	struct tty_queue secondary;
 	};
 
+extern int starflag;
+
 extern struct tty_struct tty_table[];
 
 /*	intr=^C		quit=^|		erase=del	kill=^U
